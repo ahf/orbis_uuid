@@ -1,0 +1,21 @@
+{application, orbis_uuid, [
+    {description, "Orbis: UUID Generator."},
+    {vsn, "0.1.0"},
+    {modules, []},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        orbis
+    ]},
+    {mod, {orbis_uuid_app, []}},
+    {env, [
+       %% Epoch Offset in Milliseconds.
+       {epoch_offset, 1234567000000},
+
+       %% Number of workers in the pool, and thus the number of shard's.
+       {pool_size, 8}
+    ]}
+]}.
+
+%% vim: set ft=erlang et :
