@@ -40,7 +40,8 @@
     partition    :: orbis_chash_bucket:partition(),
     sequence     :: non_neg_integer(),
     shard        :: non_neg_integer(),
-    epoch_offset :: non_neg_integer()
+    epoch_offset :: non_neg_integer(),
+    time_offset  :: non_neg_integer()
 }).
 
 -define(SERVER, ?MODULE).
@@ -55,19 +56,20 @@ start_link(Arguments) ->
 
 %% @private
 init([_Name, Partition | _Arguments]) ->
-    Shard = Partition bsr (256 - 12),
+    erlang:monitor(time_offset, clock_service),
     {ok, EpochOffset} = application:get_env(orbis_uuid, epoch_offset),
-    io:format("Worker: ~p, with epoch: ~p, shard: ~p for partition: ~p~n", [self(), EpochOffset, Shard, Partition]),
+    io:format("Worker: ~p started with epoch offset: ~p, partition: ~p~n", [self(), EpochOffset, Partition]),
     {ok, #state {
         partition    = Partition,
         sequence     = 0,
-        shard        = Shard,
-        epoch_offset = EpochOffset
+        shard        = Partition bsr (256 - 12),
+        epoch_offset = EpochOffset,
+        time_offset  = erlang:time_offset(milli_seconds)
     }}.
 
 %% @private
-handle_call(create, _From, #state { sequence = Sequence, shard = Shard, epoch_offset = EpochOffset } = State) ->
-    Timestamp = erlang:monotonic_time(milli_seconds) + erlang:time_offset(milli_seconds) - EpochOffset,
+handle_call(create, _From, #state { sequence = Sequence, shard = Shard, epoch_offset = EpochOffset, time_offset = TimeOffset } = State) ->
+    Timestamp = erlang:monotonic_time(milli_seconds) + TimeOffset - EpochOffset,
     Reply = (Timestamp bsl 22) bor (Shard bsl 10) bor Sequence,
     {reply, Reply, State#state { sequence = (Sequence + 1) rem 1024 }};
 
@@ -80,6 +82,22 @@ handle_cast(_Message, State) ->
     {noreply, State}.
 
 %% @private
+handle_info({'CHANGE', _Ref, time_offset, clock_service, NativeTimeOffset}, #state { time_offset = CurrentTimeOffset } = State) ->
+    TimeOffset = erlang:convert_time_unit(NativeTimeOffset, native, milli_seconds),
+    TimeDelta  = TimeOffset - CurrentTimeOffset,
+    case TimeDelta of
+        TimeDelta when TimeDelta > 0 ->
+            io:format("Time changed ~.5f seconds forward: updating time offset~n", [TimeDelta / 1000]),
+            {noreply, State#state { time_offset = TimeOffset }};
+
+        TimeDelta when TimeDelta < 0 ->
+            io:format("Time changed ~.5f seconds backwards: ignoring~n", [TimeDelta / 1000]),
+            {noreply, State};
+
+        _ ->
+            {noreply, State}
+    end;
+
 handle_info(_Info, State) ->
     {noreply, State}.
 

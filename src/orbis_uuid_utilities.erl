@@ -28,7 +28,7 @@ decode(UUID) when is_integer(UUID) ->
     {ok, EpochOffset} = application:get_env(orbis_uuid, epoch_offset),
     case binary:encode_unsigned(UUID) of
         <<Timestamp:42/integer, Shard:12/integer, Sequence:10/integer>> ->
-            {ok, #{ timestamp => Timestamp + EpochOffset, shard => Shard, sequence  => Sequence }};
+            {ok, #{ timestamp => (Timestamp + EpochOffset) / 1000, shard => Shard, sequence  => Sequence }};
         _ ->
             {error, invalid_uuid}
     end.
