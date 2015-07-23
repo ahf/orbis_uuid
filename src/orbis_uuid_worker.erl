@@ -58,7 +58,6 @@ start_link(Arguments) ->
 init([_Name, Partition | _Arguments]) ->
     erlang:monitor(time_offset, clock_service),
     {ok, EpochOffset} = application:get_env(orbis_uuid, epoch_offset),
-    io:format("Worker: ~p started with epoch offset: ~p, partition: ~p~n", [self(), EpochOffset, Partition]),
     {ok, #state {
         partition    = Partition,
         sequence     = 0,
@@ -87,11 +86,9 @@ handle_info({'CHANGE', _Ref, time_offset, clock_service, NativeTimeOffset}, #sta
     TimeDelta  = TimeOffset - CurrentTimeOffset,
     case TimeDelta of
         TimeDelta when TimeDelta > 0 ->
-            io:format("Time changed ~.5f seconds forward: updating time offset~n", [TimeDelta / 1000]),
             {noreply, State#state { time_offset = TimeOffset }};
 
         TimeDelta when TimeDelta < 0 ->
-            io:format("Time changed ~.5f seconds backwards: ignoring~n", [TimeDelta / 1000]),
             {noreply, State};
 
         _ ->

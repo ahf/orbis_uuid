@@ -21,16 +21,7 @@
 -module(orbis_uuid).
 
 %% API.
--export([test/0, create/0]).
-
-test() ->
-    spawn(fun Fun() ->
-        UUID = create(),
-        {ok, #{ timestamp := Timestamp, shard := Shard, sequence := Sequence }} = orbis_uuid_utilities:decode(UUID),
-        io:format("UUID Tick: UUID: ~b, Timestamp: ~.3f seconds, Shard: ~4b, Sequence: ~4b~n", [UUID, Timestamp, Shard, Sequence]),
-        timer:sleep(2000),
-        Fun()
-    end).
+-export([create/0]).
 
 -spec create() -> integer().
 create() ->
